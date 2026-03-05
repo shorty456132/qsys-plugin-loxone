@@ -1,0 +1,1 @@
+-- No internal component wiring required for this plugin.

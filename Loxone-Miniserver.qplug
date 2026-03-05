@@ -1,0 +1,1174 @@
+-- Loxone Miniserver
+-- by QSC
+-- 2026-03-04
+
+-- Information block for the plugin
+PluginInfo = {
+  Name = "Loxone Miniserver",
+  Version = "1.0.4",
+  BuildVersion = "1.0.4.0",
+  Id = "f3a7b2e9-d541-4c8f-9b63-1e5d2a80c4f7",
+  Author = "QSC",
+  Description = "Controls and monitors a Loxone Miniserver via HTTP Web Services API. Supports digital (On/Off/Pulse) and analog virtual I/O with status polling."
+}
+
+-- Define the color of the plugin object in the design
+function GetColor(props)
+  return { 40, 80, 140 }  -- Loxone blue
+end
+
+-- The name that will initially display when dragged into a design
+function GetPrettyName(props)
+  return "Loxone Miniserver, version " .. PluginInfo.Version
+end
+
+-- Optional function used if plugin has multiple pages
+PageNames = { "Control", "Setup" }
+function GetPages(props)
+  local pages = {}
+  for ix, name in ipairs(PageNames) do
+    table.insert(pages, { name = PageNames[ix] })
+  end
+  return pages
+end
+
+-- Optional function to define model if plugin supports more than one model
+function GetModel(props)
+  local model = {}
+  if props.Model ~= nil and props.Model.Value ~= "" then
+    table.insert(model, { props.Model.Value })
+  else
+    table.insert(model, { "Loxone Miniserver" })
+  end
+  return model
+end
+
+-- Define User configurable Properties of the plugin
+function GetProperties()
+  local props = {}
+  table.insert(props, {
+    Name = "HTTP Port",
+    Type = "integer",
+    Min = 1,
+    Max = 65535,
+    Value = 80
+  })
+
+  table.insert(props, {
+    Name = "Use HTTPS",
+    Type = "boolean",
+    Value = false
+  })
+
+  table.insert(props, {
+    Name = "Digital Control Count",
+    Type = "integer",
+    Min = 0,
+    Max = 8,
+    Value = 4
+  })
+
+  table.insert(props, {
+    Name = "Analog Control Count",
+    Type = "integer",
+    Min = 0,
+    Max = 4,
+    Value = 2
+  })
+
+  table.insert(props, {
+    Name = "Poll Interval",
+    Type = "integer",
+    Min = 1,
+    Max = 60,
+    Value = 5
+  })
+  return props
+end
+
+-- Optional function to define pins on the plugin that are not connected to a Control
+function GetPins(props)
+  local pins = {}
+  -- No external audio/serial pins required for this plugin.
+  return pins
+end
+
+-- Optional function to update available properties when properties are altered by the user
+function RectifyProperties(props)
+  -- No dynamic property adjustments required.
+  -- HTTP Port, Use HTTPS, Digital/Analog Control Count, and Poll Interval
+  -- are always shown in the Properties panel.
+  return props
+end
+
+-- Optional function to define components used within the plugin
+function GetComponents(props)
+  local components = {}
+  -- No embedded Q-SYS components required for this plugin.
+  -- All communication uses HttpClient.
+  return components
+end
+
+-- Optional function to define wiring of components used within the plugin
+function GetWiring(props)
+  local wiring = {}
+  -- No internal component wiring required for this plugin.
+  return wiring
+end
+
+-- Defines the Controls used within the plugin
+function GetControls(props)
+  local ctrls = {}
+  -- Connection controls (reserved names)
+  table.insert(ctrls, {
+    Name = "IPAddress",
+    ControlType = "Text",
+    UserPin = true,
+    PinStyle = "Input",
+    Count = 1
+  })
+
+  table.insert(ctrls, {
+    Name = "Username",
+    ControlType = "Text",
+    UserPin = false,
+    PinStyle = "None",
+    Count = 1
+  })
+
+  table.insert(ctrls, {
+    Name = "Password",
+    ControlType = "Text",
+    UserPin = false,
+    PinStyle = "None",
+    Count = 1
+  })
+
+  table.insert(ctrls, {
+    Name = "Status",
+    ControlType = "Indicator",
+    IndicatorType = "Status",
+    UserPin = true,
+    PinStyle = "Output",
+    Count = 1
+  })
+
+  table.insert(ctrls, {
+    Name = "Connect",
+    ControlType = "Button",
+    ButtonType = "Toggle",
+    UserPin = true,
+    PinStyle = "Input",
+    Count = 1
+  })
+
+  table.insert(ctrls, {
+    Name = "Test Connection",
+    ControlType = "Button",
+    ButtonType = "Momentary",
+    UserPin = true,
+    PinStyle = "Input",
+    Count = 1
+  })
+
+  table.insert(ctrls, {
+    Name = "Debug Print",
+    ControlType = "Button",
+    ButtonType = "Toggle",
+    UserPin = false,
+    PinStyle = "None",
+    Count = 1
+  })
+
+  -- Device info (reserved names)
+  table.insert(ctrls, {
+    Name = "DeviceName",
+    ControlType = "Indicator",
+    IndicatorType = "Text",
+    UserPin = true,
+    PinStyle = "Output",
+    Count = 1
+  })
+
+  table.insert(ctrls, {
+    Name = "DeviceFirmware",
+    ControlType = "Indicator",
+    IndicatorType = "Text",
+    UserPin = true,
+    PinStyle = "Output",
+    Count = 1
+  })
+
+  -- Digital controls (one insert per control, index baked into Name so Count=1 always)
+  local dCount = math.floor(props["Digital Control Count"].Value)
+  for i = 1, dCount do
+    table.insert(ctrls, {
+      Name = "Digital Name " .. i,
+      ControlType = "Text",
+      UserPin = false,
+      PinStyle = "None",
+      Count = 1
+    })
+    table.insert(ctrls, {
+      Name = "Digital On " .. i,
+      ControlType = "Button",
+      ButtonType = "Momentary",
+      UserPin = true,
+      PinStyle = "Input",
+      Count = 1
+    })
+    table.insert(ctrls, {
+      Name = "Digital Off " .. i,
+      ControlType = "Button",
+      ButtonType = "Momentary",
+      UserPin = true,
+      PinStyle = "Input",
+      Count = 1
+    })
+    table.insert(ctrls, {
+      Name = "Digital Pulse " .. i,
+      ControlType = "Button",
+      ButtonType = "Momentary",
+      UserPin = true,
+      PinStyle = "Input",
+      Count = 1
+    })
+    table.insert(ctrls, {
+      Name = "Digital State " .. i,
+      ControlType = "Indicator",
+      IndicatorType = "Led",
+      UserPin = true,
+      PinStyle = "Output",
+      Count = 1
+    })
+  end
+
+  -- Analog controls (one insert per control, index baked into Name so Count=1 always)
+  local aCount = math.floor(props["Analog Control Count"].Value)
+  for i = 1, aCount do
+    table.insert(ctrls, {
+      Name = "Analog Name " .. i,
+      ControlType = "Text",
+      UserPin = false,
+      PinStyle = "None",
+      Count = 1
+    })
+    table.insert(ctrls, {
+      Name = "Analog Value " .. i,
+      ControlType = "Text",
+      UserPin = true,
+      PinStyle = "Both",
+      Count = 1
+    })
+    table.insert(ctrls, {
+      Name = "Analog Send " .. i,
+      ControlType = "Button",
+      ButtonType = "Momentary",
+      UserPin = true,
+      PinStyle = "Input",
+      Count = 1
+    })
+    table.insert(ctrls, {
+      Name = "Analog State " .. i,
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      UserPin = true,
+      PinStyle = "Output",
+      Count = 1
+    })
+  end
+  return ctrls
+end
+
+-- Layout of controls and graphics for the plugin UI to display
+function GetControlLayout(props)
+  local layout = {}
+  local graphics = {}
+  local CurrentPage = PageNames[props["page_index"].Value]
+
+  if CurrentPage == "Control" then
+    -- Plugin background
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Fill = { 35, 35, 35 },
+      StrokeColor = { 35, 35, 35 },
+      StrokeWidth = 0,
+      CornerRadius = 0,
+      Position = { 0, 0 },
+      Size = { 420, 630 },
+      ZOrder = -10
+    })
+
+    -- Connection Status section
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Connection",
+      Fill = { 55, 55, 55 },
+      Color = { 221, 221, 221 },
+      StrokeColor = { 80, 80, 80 },
+      StrokeWidth = 1,
+      CornerRadius = 8,
+      Font = "Roboto",
+      FontSize = 11,
+      Position = { 10, 10 },
+      Size = { 400, 55 },
+      ZOrder = -5
+    })
+
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Connect",
+      Color = { 200, 200, 200 },
+      Font = "Roboto",
+      FontSize = 11,
+      HTextAlign = "Right",
+      Position = { 20, 32 },
+      Size = { 65, 20 }
+    })
+
+    layout["Connect"] = {
+      PrettyName = "Connection~Connect",
+      Style = "Button",
+      ButtonVisualStyle = "Flat",
+      Position = { 90, 30 },
+      Size = { 90, 24 },
+      Color = { 0, 180, 80 },
+      OffColor = { 80, 80, 80 },
+      UnlinkOffColor = true,
+      Legend = "Connect",
+      FontSize = 12,
+      CornerRadius = 4
+    }
+
+    layout["Status"] = {
+      PrettyName = "Connection~Status",
+      Position = { 195, 30 },
+      Size = { 205, 24 }
+    }
+
+    -- Digital Controls section
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Digital Controls",
+      Fill = { 50, 50, 50 },
+      Color = { 221, 221, 221 },
+      StrokeColor = { 75, 75, 75 },
+      StrokeWidth = 1,
+      CornerRadius = 8,
+      Font = "Roboto",
+      FontSize = 11,
+      Position = { 10, 75 },
+      Size = { 400, 295 },
+      ZOrder = -5
+    })
+
+    -- Digital column headers
+    table.insert(graphics, {
+      Type = "Label", Text = "Control Name",
+      Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+      HTextAlign = "Center", Position = { 20, 95 }, Size = { 130, 17 }
+    })
+    table.insert(graphics, {
+      Type = "Label", Text = "On",
+      Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+      HTextAlign = "Center", Position = { 155, 95 }, Size = { 48, 17 }
+    })
+    table.insert(graphics, {
+      Type = "Label", Text = "Off",
+      Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+      HTextAlign = "Center", Position = { 208, 95 }, Size = { 48, 17 }
+    })
+    table.insert(graphics, {
+      Type = "Label", Text = "Pulse",
+      Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+      HTextAlign = "Center", Position = { 261, 95 }, Size = { 53, 17 }
+    })
+    table.insert(graphics, {
+      Type = "Label", Text = "State",
+      Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+      HTextAlign = "Center", Position = { 323, 95 }, Size = { 30, 17 }
+    })
+
+    local dCount = math.floor(props["Digital Control Count"].Value)
+    for i = 1, dCount do
+      local rowY = 115 + (i - 1) * 32
+
+      layout["Digital Name " .. i] = {
+        PrettyName = "Digital " .. i .. "~Control Name",
+        Style = "Text",
+        Position = { 20, rowY },
+        Size = { 130, 24 },
+        FontSize = 11
+      }
+
+      layout["Digital On " .. i] = {
+        PrettyName = "Digital " .. i .. "~On",
+        Style = "Button",
+        ButtonVisualStyle = "Flat",
+        Position = { 155, rowY },
+        Size = { 48, 24 },
+        Color = { 0, 180, 80 },
+        Legend = "On",
+        FontSize = 11,
+        CornerRadius = 4
+      }
+
+      layout["Digital Off " .. i] = {
+        PrettyName = "Digital " .. i .. "~Off",
+        Style = "Button",
+        ButtonVisualStyle = "Flat",
+        Position = { 208, rowY },
+        Size = { 48, 24 },
+        Color = { 200, 60, 60 },
+        Legend = "Off",
+        FontSize = 11,
+        CornerRadius = 4
+      }
+
+      layout["Digital Pulse " .. i] = {
+        PrettyName = "Digital " .. i .. "~Pulse",
+        Style = "Button",
+        ButtonVisualStyle = "Flat",
+        Position = { 261, rowY },
+        Size = { 53, 24 },
+        Color = { 60, 120, 200 },
+        Legend = "Pulse",
+        FontSize = 11,
+        CornerRadius = 4
+      }
+
+      layout["Digital State " .. i] = {
+        PrettyName = "Digital " .. i .. "~State",
+        Style = "Led",
+        Position = { 330, rowY + 4 },
+        Size = { 16, 16 },
+        Color = { 0, 220, 60 },
+        OffColor = { 100, 40, 40 },
+        UnlinkOffColor = true
+      }
+    end
+
+    -- Analog Controls section
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Analog Controls",
+      Fill = { 50, 50, 50 },
+      Color = { 221, 221, 221 },
+      StrokeColor = { 75, 75, 75 },
+      StrokeWidth = 1,
+      CornerRadius = 8,
+      Font = "Roboto",
+      FontSize = 11,
+      Position = { 10, 380 },
+      Size = { 400, 205 },
+      ZOrder = -5
+    })
+
+    -- Analog column headers
+    table.insert(graphics, {
+      Type = "Label", Text = "Control Name",
+      Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+      HTextAlign = "Center", Position = { 20, 400 }, Size = { 115, 17 }
+    })
+    table.insert(graphics, {
+      Type = "Label", Text = "Value",
+      Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+      HTextAlign = "Center", Position = { 140, 400 }, Size = { 85, 17 }
+    })
+    table.insert(graphics, {
+      Type = "Label", Text = "Send",
+      Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+      HTextAlign = "Center", Position = { 230, 400 }, Size = { 55, 17 }
+    })
+    table.insert(graphics, {
+      Type = "Label", Text = "State",
+      Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+      HTextAlign = "Center", Position = { 290, 400 }, Size = { 110, 17 }
+    })
+
+    local aCount = math.floor(props["Analog Control Count"].Value)
+    for i = 1, aCount do
+      local rowY = 420 + (i - 1) * 40
+
+      layout["Analog Name " .. i] = {
+        PrettyName = "Analog " .. i .. "~Control Name",
+        Style = "Text",
+        Position = { 20, rowY },
+        Size = { 115, 24 },
+        FontSize = 11
+      }
+
+      layout["Analog Value " .. i] = {
+        PrettyName = "Analog " .. i .. "~Value",
+        Style = "Text",
+        Position = { 140, rowY },
+        Size = { 85, 24 },
+        FontSize = 11
+      }
+
+      layout["Analog Send " .. i] = {
+        PrettyName = "Analog " .. i .. "~Send",
+        Style = "Button",
+        ButtonVisualStyle = "Flat",
+        Position = { 230, rowY },
+        Size = { 55, 24 },
+        Color = { 60, 120, 200 },
+        Legend = "Send",
+        FontSize = 11,
+        CornerRadius = 4
+      }
+
+      layout["Analog State " .. i] = {
+        PrettyName = "Analog " .. i .. "~State",
+        Style = "Text",
+        Position = { 290, rowY },
+        Size = { 110, 24 },
+        FontSize = 10
+      }
+    end
+
+    -- Build version
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "v" .. PluginInfo.BuildVersion,
+      Color = { 100, 100, 100 },
+      Font = "Roboto",
+      FontSize = 9,
+      HTextAlign = "Left",
+      Position = { 10, 612 },
+      Size = { 100, 16 }
+    })
+
+  elseif CurrentPage == "Setup" then
+    -- Plugin background
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Fill = { 35, 35, 35 },
+      StrokeColor = { 35, 35, 35 },
+      StrokeWidth = 0,
+      CornerRadius = 0,
+      Position = { 0, 0 },
+      Size = { 420, 630 },
+      ZOrder = -10
+    })
+
+    -- Connection Settings section
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Connection Settings",
+      Fill = { 55, 55, 55 },
+      Color = { 221, 221, 221 },
+      StrokeColor = { 80, 80, 80 },
+      StrokeWidth = 1,
+      CornerRadius = 8,
+      Font = "Roboto",
+      FontSize = 11,
+      Position = { 10, 10 },
+      Size = { 400, 135 },
+      ZOrder = -5
+    })
+
+    table.insert(graphics, {
+      Type = "Label", Text = "IP Address",
+      Color = { 200, 200, 200 }, Font = "Roboto", FontSize = 11,
+      HTextAlign = "Right", Position = { 20, 38 }, Size = { 85, 20 }
+    })
+    layout["IPAddress"] = {
+      PrettyName = "Connection~IP Address",
+      Style = "Text",
+      Position = { 110, 36 },
+      Size = { 175, 24 },
+      FontSize = 11,
+      CornerRadius = 4
+    }
+
+    table.insert(graphics, {
+      Type = "Label", Text = "Username",
+      Color = { 200, 200, 200 }, Font = "Roboto", FontSize = 11,
+      HTextAlign = "Right", Position = { 20, 70 }, Size = { 85, 20 }
+    })
+    layout["Username"] = {
+      PrettyName = "Connection~Username",
+      Style = "Text",
+      Position = { 110, 68 },
+      Size = { 150, 24 },
+      FontSize = 11,
+      CornerRadius = 4
+    }
+
+    table.insert(graphics, {
+      Type = "Label", Text = "Password",
+      Color = { 200, 200, 200 }, Font = "Roboto", FontSize = 11,
+      HTextAlign = "Right", Position = { 20, 102 }, Size = { 85, 20 }
+    })
+    layout["Password"] = {
+      PrettyName = "Connection~Password",
+      Style = "Text",
+      Position = { 110, 100 },
+      Size = { 150, 24 },
+      FontSize = 11,
+      CornerRadius = 4
+    }
+
+    layout["Test Connection"] = {
+      PrettyName = "Connection~Test Connection",
+      Style = "Button",
+      ButtonVisualStyle = "Flat",
+      Position = { 275, 100 },
+      Size = { 120, 24 },
+      Color = { 60, 120, 200 },
+      Legend = "Test Connection",
+      FontSize = 11,
+      CornerRadius = 4
+    }
+
+    -- Device Info section
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Device Info",
+      Fill = { 55, 55, 55 },
+      Color = { 221, 221, 221 },
+      StrokeColor = { 80, 80, 80 },
+      StrokeWidth = 1,
+      CornerRadius = 8,
+      Font = "Roboto",
+      FontSize = 11,
+      Position = { 10, 155 },
+      Size = { 400, 90 },
+      ZOrder = -5
+    })
+
+    table.insert(graphics, {
+      Type = "Label", Text = "Device Name",
+      Color = { 200, 200, 200 }, Font = "Roboto", FontSize = 11,
+      HTextAlign = "Right", Position = { 20, 183 }, Size = { 85, 20 }
+    })
+    layout["DeviceName"] = {
+      PrettyName = "Device~Device Name",
+      Style = "Text",
+      Position = { 110, 181 },
+      Size = { 285, 24 },
+      FontSize = 11
+    }
+
+    table.insert(graphics, {
+      Type = "Label", Text = "Firmware",
+      Color = { 200, 200, 200 }, Font = "Roboto", FontSize = 11,
+      HTextAlign = "Right", Position = { 20, 213 }, Size = { 85, 20 }
+    })
+    layout["DeviceFirmware"] = {
+      PrettyName = "Device~Firmware Version",
+      Style = "Text",
+      Position = { 110, 211 },
+      Size = { 285, 24 },
+      FontSize = 11
+    }
+
+    -- Debug section
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Debug",
+      Fill = { 55, 55, 55 },
+      Color = { 221, 221, 221 },
+      StrokeColor = { 80, 80, 80 },
+      StrokeWidth = 1,
+      CornerRadius = 8,
+      Font = "Roboto",
+      FontSize = 11,
+      Position = { 10, 255 },
+      Size = { 400, 55 },
+      ZOrder = -5
+    })
+
+    table.insert(graphics, {
+      Type = "Label", Text = "Debug Print",
+      Color = { 200, 200, 200 }, Font = "Roboto", FontSize = 11,
+      HTextAlign = "Right", Position = { 20, 278 }, Size = { 85, 20 }
+    })
+    layout["Debug Print"] = {
+      PrettyName = "Debug~Debug Print",
+      Style = "Button",
+      ButtonVisualStyle = "Flat",
+      Position = { 110, 276 },
+      Size = { 90, 24 },
+      Color = { 200, 140, 0 },
+      OffColor = { 80, 80, 80 },
+      UnlinkOffColor = true,
+      Legend = "Debug On",
+      FontSize = 11,
+      CornerRadius = 4
+    }
+
+    -- Properties reference note
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "HTTP Port, HTTPS, control counts, and poll interval are configured in Plugin Properties.",
+      Color = { 130, 130, 130 },
+      Font = "Roboto",
+      FontSize = 10,
+      HTextAlign = "Left",
+      Position = { 20, 325 },
+      Size = { 380, 30 }
+    })
+
+    -- Build version
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "v" .. PluginInfo.BuildVersion,
+      Color = { 100, 100, 100 },
+      Font = "Roboto",
+      FontSize = 9,
+      HTextAlign = "Left",
+      Position = { 10, 612 },
+      Size = { 100, 16 }
+    })
+
+  end
+  return layout, graphics
+end
+
+-- Start event based logic
+if Controls then
+  --[[ Loxone Miniserver Runtime
+    Communicates with Loxone Miniserver via HTTP Web Services API.
+    Supports digital (On/Off/Pulse) and analog virtual I/O with periodic polling.
+    Authentication uses HTTP Basic Auth (User/Password fields in HttpClient.Download).
+  ]]
+
+  --------------------
+  -- Components ------
+  --------------------
+  -- (none required — uses HttpClient for HTTP requests)
+  -- End Components --
+
+  --------------------
+  -- Variables -------
+  --------------------
+  MaxDigital = 8
+  MaxAnalog = 4
+
+  -- Status state codes (matching Q-SYS StatusState enum)
+  StatusState = {
+    OK           = 0,
+    COMPROMISED  = 1,
+    FAULT        = 2,
+    NOTPRESENT   = 3,
+    MISSING      = 4,
+    INITIALIZING = 5
+  }
+
+  PollTimer = Timer.New()
+  DebugPrint = false
+  -- End Variables ---
+
+  --------------------
+  -- Functions -------
+  --------------------
+
+  -- Build base URL from IP address and properties
+  function GetBaseUrl()
+    local scheme = Properties["Use HTTPS"].Value and "https" or "http"
+    local host = Controls["IPAddress"].String
+    local port = math.floor(Properties["HTTP Port"].Value)  -- floor prevents Lua 5.3 %d float error
+    return string.format("%s://%s:%d", scheme, host, port)
+  end
+
+  -- URL-encode a control name (spaces and special characters)
+  function UrlEncode(s)
+    return s:gsub("[^%w%-_%.~]", function(c)
+      return string.format("%%%02X", string.byte(c))
+    end)
+  end
+
+  -- Set plugin status indicator
+  function SetStatus(state, msg)
+    Controls["Status"].Value = StatusState[state] or StatusState.FAULT
+    Controls["Status"].String = msg or ""
+  end
+
+  -- Parse Loxone XML response: <LL control="..." value="1" Code="200"/>
+  function ParseLL(xml)
+    local code = xml:match('Code="(%d+)"')
+    local value = xml:match('value="([^"]*)"')
+    return tonumber(code), value
+  end
+
+  -- Send a digital command (On, Off, Pulse) to a named Loxone virtual input
+  function SendDigitalCommand(controlName, cmd, idx)
+    if controlName == "" then
+      print("Digital " .. tostring(idx) .. ": No control name configured")
+      return
+    end
+
+    local url = GetBaseUrl() .. "/dev/sps/io/" .. UrlEncode(controlName) .. "/" .. cmd
+    print("TX: " .. url)
+
+    HttpClient.Download({
+      Url = url,
+      Method = "GET",
+      User = Controls["Username"].String,
+      Password = Controls["Password"].String,
+      Timeout = 5,
+      EventHandler = function(tbl, code, data, err, headers)
+        if DebugPrint then
+          print("RX [" .. tostring(code) .. "]: " .. tostring(data))
+        end
+        if code == 200 then
+          SetStatus("OK", "OK")
+          local respCode, value = ParseLL(data or "")
+          if value and idx then
+            Controls["Digital State " .. idx].Boolean = (value == "1")
+          end
+        elseif code == 401 then
+          SetStatus("FAULT", "Auth Failed")
+          print("Auth Error: Check Username/Password")
+        elseif code == 0 then
+          SetStatus("FAULT", "No Response")
+          print("Digital " .. tostring(idx) .. ": No response (timeout or unreachable)")
+        else
+          SetStatus("FAULT", "HTTP Error " .. tostring(code))
+          print("HTTP Error [" .. tostring(code) .. "]: " .. tostring(err))
+        end
+      end
+    })
+  end
+
+  -- Send an analog value to a named Loxone virtual input
+  function SendAnalogCommand(controlName, value, idx)
+    if controlName == "" then
+      print("Analog " .. tostring(idx) .. ": No control name configured")
+      return
+    end
+
+    local numValue = tonumber(value)
+    if not numValue then
+      print("Analog " .. tostring(idx) .. ": Invalid numeric value: " .. tostring(value))
+      return
+    end
+
+    local url = GetBaseUrl() .. "/dev/sps/io/" .. UrlEncode(controlName) .. "/" .. tostring(numValue)
+    print("TX: " .. url)
+
+    HttpClient.Download({
+      Url = url,
+      Method = "GET",
+      User = Controls["Username"].String,
+      Password = Controls["Password"].String,
+      Timeout = 5,
+      EventHandler = function(tbl, code, data, err, headers)
+        if DebugPrint then
+          print("RX [" .. tostring(code) .. "]: " .. tostring(data))
+        end
+        if code == 200 then
+          SetStatus("OK", "OK")
+          local respCode, respValue = ParseLL(data or "")
+          if respValue and idx then
+            Controls["Analog State " .. idx].String = respValue
+          end
+        elseif code == 401 then
+          SetStatus("FAULT", "Auth Failed")
+          print("Auth Error: Check Username/Password")
+        elseif code == 0 then
+          SetStatus("FAULT", "No Response")
+          print("Analog " .. tostring(idx) .. ": No response (timeout or unreachable)")
+        else
+          SetStatus("FAULT", "HTTP Error " .. tostring(code))
+          print("HTTP Error [" .. tostring(code) .. "]: " .. tostring(err))
+        end
+      end
+    })
+  end
+
+  -- Poll the state of a single digital control
+  function PollDigital(idx, controlName)
+    if controlName == "" then return end
+
+    local url = GetBaseUrl() .. "/dev/sps/io/" .. UrlEncode(controlName) .. "/state"
+    if DebugPrint then print("TX (poll): " .. url) end
+
+    HttpClient.Download({
+      Url = url,
+      Method = "GET",
+      User = Controls["Username"].String,
+      Password = Controls["Password"].String,
+      Timeout = 5,
+      EventHandler = function(tbl, code, data, err, headers)
+        if DebugPrint then
+          print("RX Digital " .. idx .. " [" .. tostring(code) .. "]: " .. tostring(data))
+        end
+        if code == 200 then
+          SetStatus("OK", "Polling")
+          if data and data ~= "" then
+            local respCode, value = ParseLL(data)
+            if value then
+              Controls["Digital State " .. idx].Boolean = (value == "1")
+            end
+          end
+        elseif code == 0 then
+          SetStatus("COMPROMISED", "Connection Lost")
+          print("Poll Digital " .. idx .. ": No response (timeout or unreachable)")
+        elseif code == 401 then
+          SetStatus("FAULT", "Auth Failed")
+          print("Poll Digital " .. idx .. ": Auth Error (401)")
+        else
+          SetStatus("COMPROMISED", "Poll Error " .. tostring(code))
+          print("Poll Digital " .. idx .. " error [" .. tostring(code) .. "]: " .. tostring(err))
+        end
+      end
+    })
+  end
+
+  -- Poll the state of a single analog control
+  function PollAnalog(idx, controlName)
+    if controlName == "" then return end
+
+    local url = GetBaseUrl() .. "/dev/sps/io/" .. UrlEncode(controlName) .. "/state"
+    if DebugPrint then print("TX (poll): " .. url) end
+
+    HttpClient.Download({
+      Url = url,
+      Method = "GET",
+      User = Controls["Username"].String,
+      Password = Controls["Password"].String,
+      Timeout = 5,
+      EventHandler = function(tbl, code, data, err, headers)
+        if DebugPrint then
+          print("RX Analog " .. idx .. " [" .. tostring(code) .. "]: " .. tostring(data))
+        end
+        if code == 200 then
+          SetStatus("OK", "Polling")
+          if data and data ~= "" then
+            local respCode, value = ParseLL(data)
+            if value then
+              Controls["Analog State " .. idx].String = value
+            end
+          end
+        elseif code == 0 then
+          SetStatus("COMPROMISED", "Connection Lost")
+          print("Poll Analog " .. idx .. ": No response (timeout or unreachable)")
+        elseif code == 401 then
+          SetStatus("FAULT", "Auth Failed")
+          print("Poll Analog " .. idx .. ": Auth Error (401)")
+        else
+          SetStatus("COMPROMISED", "Poll Error " .. tostring(code))
+          print("Poll Analog " .. idx .. " error [" .. tostring(code) .. "]: " .. tostring(err))
+        end
+      end
+    })
+  end
+
+  -- Poll all configured controls
+  function PollAll()
+    if Controls["IPAddress"].String == "" then
+      SetStatus("MISSING", "No IP Address")
+      return
+    end
+
+    local digitalCount = math.floor(Properties["Digital Control Count"].Value)
+    for i = 1, digitalCount do
+      local idx = i
+      local name = Controls["Digital Name " .. idx].String
+      PollDigital(idx, name)
+    end
+
+    local analogCount = math.floor(Properties["Analog Control Count"].Value)
+    for i = 1, analogCount do
+      local idx = i
+      local name = Controls["Analog Name " .. idx].String
+      PollAnalog(idx, name)
+    end
+  end
+
+  -- Fetch device info from Miniserver configuration endpoints
+  function FetchDeviceInfo()
+    local base = GetBaseUrl()
+    local user = Controls["Username"].String
+    local pass = Controls["Password"].String
+
+    -- Device name
+    HttpClient.Download({
+      Url = base .. "/dev/cfg/device",
+      Method = "GET",
+      User = user,
+      Password = pass,
+      Timeout = 5,
+      EventHandler = function(tbl, code, data, err, headers)
+        if code == 200 then
+          local respCode, value = ParseLL(data or "")
+          if value then
+            Controls["DeviceName"].String = value
+            print("Device Name: " .. value)
+          end
+        else
+          if DebugPrint then
+            print("Device Name fetch error [" .. tostring(code) .. "]: " .. tostring(err))
+          end
+        end
+      end
+    })
+
+    -- Firmware version
+    HttpClient.Download({
+      Url = base .. "/dev/cfg/version",
+      Method = "GET",
+      User = user,
+      Password = pass,
+      Timeout = 5,
+      EventHandler = function(tbl, code, data, err, headers)
+        if code == 200 then
+          local respCode, value = ParseLL(data or "")
+          if value then
+            Controls["DeviceFirmware"].String = value
+            print("Firmware: " .. value)
+          end
+        else
+          if DebugPrint then
+            print("Firmware fetch error [" .. tostring(code) .. "]: " .. tostring(err))
+          end
+        end
+      end
+    })
+  end
+
+  -- Start polling
+  function StartPolling()
+    if Controls["IPAddress"].String == "" then
+      SetStatus("MISSING", "No IP Address")
+      Controls["Connect"].Boolean = false
+      print("Cannot start: No IP Address configured")
+      return
+    end
+
+    print("Starting polling for Loxone at " .. Controls["IPAddress"].String)
+    SetStatus("INITIALIZING", "Connecting...")
+
+    PollAll()
+    FetchDeviceInfo()
+    PollTimer:Start(Properties["Poll Interval"].Value)
+  end
+
+  -- Stop polling
+  function StopPolling()
+    PollTimer:Stop()
+    SetStatus("NOTPRESENT", "Not Polling")
+    print("Polling stopped")
+  end
+  -- End Functions ---
+
+  --------------------
+  -- EventHandlers ---
+  --------------------
+
+  -- Polling timer fires PollAll on each interval
+  PollTimer.EventHandler = function()
+    PollAll()
+  end
+
+  -- Connect toggle: start or stop polling
+  Controls["Connect"].EventHandler = function(ctl)
+    if ctl.Boolean then
+      StartPolling()
+    else
+      StopPolling()
+    end
+  end
+
+  -- Test Connection button: polls PLC state to verify connectivity
+  Controls["Test Connection"].EventHandler = function()
+    if Controls["IPAddress"].String == "" then
+      SetStatus("MISSING", "No IP Address")
+      return
+    end
+
+    local url = GetBaseUrl() .. "/dev/sps/state"
+    print("TX: " .. url)
+
+    HttpClient.Download({
+      Url = url,
+      Method = "GET",
+      User = Controls["Username"].String,
+      Password = Controls["Password"].String,
+      Timeout = 5,
+      EventHandler = function(tbl, code, data, err, headers)
+        if DebugPrint then
+          print("RX [" .. tostring(code) .. "]: " .. tostring(data))
+        end
+        if code == 200 then
+          local respCode, value = ParseLL(data or "")
+          local plcStates = {
+            ["0"] = "None",        ["1"] = "Booting",
+            ["2"] = "Loaded",      ["3"] = "Started",
+            ["4"] = "Link started",["5"] = "Running",
+            ["6"] = "Config changed", ["7"] = "Error",
+            ["8"] = "Update"
+          }
+          local stateStr = (value and plcStates[value]) or ("State " .. tostring(value))
+          SetStatus("OK", "PLC: " .. stateStr)
+          print("Test Connection OK — PLC State: " .. stateStr)
+        elseif code == 401 then
+          SetStatus("FAULT", "Auth Failed")
+          print("Test Connection: Auth Error (401)")
+        elseif code == 0 then
+          SetStatus("FAULT", "Unreachable")
+          print("Test Connection: No response (timeout or unreachable)")
+        else
+          SetStatus("FAULT", "Error " .. tostring(code))
+          print("Test Connection Error [" .. tostring(code) .. "]: " .. tostring(err))
+        end
+      end
+    })
+  end
+
+  -- Debug Print toggle
+  Controls["Debug Print"].EventHandler = function(ctl)
+    DebugPrint = ctl.Boolean
+    print("Debug Print: " .. (DebugPrint and "ON" or "OFF"))
+  end
+
+  -- Digital control event handlers (bound to exactly the configured count)
+  for i = 1, math.floor(Properties["Digital Control Count"].Value) do
+    local idx = i
+
+    Controls["Digital On " .. idx].EventHandler = function()
+      local name = Controls["Digital Name " .. idx].String
+      SendDigitalCommand(name, "On", idx)
+    end
+
+    Controls["Digital Off " .. idx].EventHandler = function()
+      local name = Controls["Digital Name " .. idx].String
+      SendDigitalCommand(name, "Off", idx)
+    end
+
+    Controls["Digital Pulse " .. idx].EventHandler = function()
+      local name = Controls["Digital Name " .. idx].String
+      SendDigitalCommand(name, "Pulse", idx)
+    end
+  end
+
+  -- Analog control event handlers (bound to exactly the configured count)
+  for i = 1, math.floor(Properties["Analog Control Count"].Value) do
+    local idx = i
+
+    Controls["Analog Send " .. idx].EventHandler = function()
+      local name = Controls["Analog Name " .. idx].String
+      local value = Controls["Analog Value " .. idx].String
+      SendAnalogCommand(name, value, idx)
+    end
+  end
+
+  --End Eventhandlers-
+
+  -- Initialize --
+  function Initialize()
+    SetStatus("NOTPRESENT", "Not Polling")
+    DebugPrint = false
+
+    -- Auto-start polling if IP address is already configured
+    if Controls["IPAddress"].String ~= "" then
+      Controls["Connect"].Boolean = true
+      StartPolling()
+    end
+  end
+
+  Initialize()
+end

@@ -1,0 +1,1 @@
+-- No external audio/serial pins required for this plugin.

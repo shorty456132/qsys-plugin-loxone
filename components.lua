@@ -1,0 +1,2 @@
+-- No embedded Q-SYS components required for this plugin.
+-- All communication uses HttpClient.

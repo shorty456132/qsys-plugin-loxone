@@ -1,0 +1,3 @@
+-- No dynamic property adjustments required.
+-- HTTP Port, Use HTTPS, Digital/Analog Control Count, and Poll Interval
+-- are always shown in the Properties panel.
