@@ -1,5 +1,5 @@
 if props.Model ~= nil and props.Model.Value ~= "" then
-  table.insert(model, { props.Model.Value })
+  table.insert(model, { props.Model.Value } )
 else
-  table.insert(model, { "Loxone Miniserver" })
+  table.insert(model, { "Loxone" } )
 end

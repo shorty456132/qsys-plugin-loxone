@@ -1,7 +1,7 @@
---[[ Loxone Miniserver Runtime
-  Communicates with Loxone Miniserver via HTTP Web Services API.
-  Supports digital (On/Off/Pulse) and analog virtual I/O with periodic polling.
-  Authentication uses HTTP Basic Auth (User/Password fields in HttpClient.Download).
+--[[ Loxone Runtime
+    Communicates with Loxone Miniserver via HTTP Web Services API.
+    Supports digital (On/Off/Pulse) and analog virtual I/O with periodic polling.
+    Authentication uses HTTP Basic Auth (User/Password fields in HttpClient.Download).
 ]]
 
 --------------------
@@ -38,7 +38,7 @@ DebugPrint = false
 function GetBaseUrl()
   local scheme = Properties["Use HTTPS"].Value and "https" or "http"
   local host = Controls["IPAddress"].String
-  local port = math.floor(Properties["HTTP Port"].Value)  -- floor prevents Lua 5.3 %d float error
+  local port = math.floor(Properties["HTTP Port"].Value)
   return string.format("%s://%s:%d", scheme, host, port)
 end
 
@@ -55,11 +55,24 @@ function SetStatus(state, msg)
   Controls["Status"].String = msg or ""
 end
 
--- Parse Loxone XML response: <LL control="..." value="1" Code="200"/>
+-- Parse Loxone LL response format: <LL control="..." value="1" Code="200"/>
 function ParseLL(xml)
+  if not xml or xml == "" then
+    return nil, nil
+  end
+
   local code = xml:match('Code="(%d+)"')
   local value = xml:match('value="([^"]*)"')
-  return tonumber(code), value
+
+  if code and value then
+    return tonumber(code), value
+  end
+
+  if DebugPrint then
+    print("Unexpected response format: " .. tostring(xml))
+  end
+
+  return nil, nil
 end
 
 -- Send a digital command (On, Off, Pulse) to a named Loxone virtual input
@@ -87,6 +100,8 @@ function SendDigitalCommand(controlName, cmd, idx)
         local respCode, value = ParseLL(data or "")
         if value and idx then
           Controls["Digital State " .. idx].Boolean = (value == "1")
+          -- Also update text field for sensor readings
+          Controls["Digital State Text " .. idx].String = value
         end
       elseif code == 401 then
         SetStatus("FAULT", "Auth Failed")
@@ -171,6 +186,8 @@ function PollDigital(idx, controlName)
           local respCode, value = ParseLL(data)
           if value then
             Controls["Digital State " .. idx].Boolean = (value == "1")
+            -- Update text field with raw value for sensor readings (temperature, lux, etc.)
+            Controls["Digital State Text " .. idx].String = value
           end
         end
       elseif code == 0 then
@@ -254,7 +271,6 @@ function FetchDeviceInfo()
   local user = Controls["Username"].String
   local pass = Controls["Password"].String
 
-  -- Device name
   HttpClient.Download({
     Url = base .. "/dev/cfg/device",
     Method = "GET",
@@ -262,21 +278,23 @@ function FetchDeviceInfo()
     Password = pass,
     Timeout = 5,
     EventHandler = function(tbl, code, data, err, headers)
+      if DebugPrint then
+        print("RX DeviceName [" .. tostring(code) .. "]: " .. tostring(data))
+      end
       if code == 200 then
         local respCode, value = ParseLL(data or "")
-        if value then
+        if value and value ~= "" then
           Controls["DeviceName"].String = value
           print("Device Name: " .. value)
         end
+      elseif code == 401 then
+        print("DeviceName fetch: Auth Error (401)")
       else
-        if DebugPrint then
-          print("Device Name fetch error [" .. tostring(code) .. "]: " .. tostring(err))
-        end
+        print("DeviceName fetch error [" .. tostring(code) .. "]: " .. tostring(err))
       end
     end
   })
 
-  -- Firmware version
   HttpClient.Download({
     Url = base .. "/dev/cfg/version",
     Method = "GET",
@@ -284,16 +302,19 @@ function FetchDeviceInfo()
     Password = pass,
     Timeout = 5,
     EventHandler = function(tbl, code, data, err, headers)
+      if DebugPrint then
+        print("RX Firmware [" .. tostring(code) .. "]: " .. tostring(data))
+      end
       if code == 200 then
         local respCode, value = ParseLL(data or "")
-        if value then
+        if value and value ~= "" then
           Controls["DeviceFirmware"].String = value
           print("Firmware: " .. value)
         end
+      elseif code == 401 then
+        print("Firmware fetch: Auth Error (401)")
       else
-        if DebugPrint then
-          print("Firmware fetch error [" .. tostring(code) .. "]: " .. tostring(err))
-        end
+        print("Firmware fetch error [" .. tostring(code) .. "]: " .. tostring(err))
       end
     end
   })
@@ -374,6 +395,9 @@ Controls["Test Connection"].EventHandler = function()
         local stateStr = (value and plcStates[value]) or ("State " .. tostring(value))
         SetStatus("OK", "PLC: " .. stateStr)
         print("Test Connection OK — PLC State: " .. stateStr)
+        
+        -- Also fetch device info on successful test
+        FetchDeviceInfo()
       elseif code == 401 then
         SetStatus("FAULT", "Auth Failed")
         print("Test Connection: Auth Error (401)")
@@ -394,7 +418,7 @@ Controls["Debug Print"].EventHandler = function(ctl)
   print("Debug Print: " .. (DebugPrint and "ON" or "OFF"))
 end
 
--- Digital control event handlers (bound to exactly the configured count)
+-- Digital control event handlers
 for i = 1, math.floor(Properties["Digital Control Count"].Value) do
   local idx = i
 
@@ -414,7 +438,7 @@ for i = 1, math.floor(Properties["Digital Control Count"].Value) do
   end
 end
 
--- Analog control event handlers (bound to exactly the configured count)
+-- Analog control event handlers
 for i = 1, math.floor(Properties["Analog Control Count"].Value) do
   local idx = i
 
@@ -431,6 +455,12 @@ end
 function Initialize()
   SetStatus("NOTPRESENT", "Not Polling")
   DebugPrint = false
+
+  -- Initialize text fields for sensor readings
+  local digitalCount = math.floor(Properties["Digital Control Count"].Value)
+  for i = 1, digitalCount do
+    Controls["Digital State Text " .. i].String = "--"
+  end
 
   -- Auto-start polling if IP address is already configured
   if Controls["IPAddress"].String ~= "" then

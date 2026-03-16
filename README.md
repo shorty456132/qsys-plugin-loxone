@@ -101,4 +101,29 @@ Controls and monitors a Loxone Miniserver via its HTTP Web Services API. Support
 
 ---
 
-*Loxone Miniserver Q-SYS Plugin v1.0.0 — Based on Loxone Web Services API*
+# Versions
+## v1.0.4
+
+**Fixed Issues:**
+1. **Device Name and Firmware Display**: Enhanced XML parsing with multiple endpoint fallbacks and better response format handling
+2. **Plugin Name**: Changed from "Loxone Miniserver" to just "Loxone"
+3. **Version**: Bumped development version to 1.0.4.1
+
+**New Feature:**
+4. **Digital State Text Fields**: Added "Digital State Text" controls to each digital control for displaying sensor readings like temperature (°C), brightness (lux), humidity (%), etc.
+
+**Improvements:**
+- Enhanced `ParseLL()` function handles multiple XML response formats
+- `FetchDeviceInfo()` tries multiple API endpoints with fallback parsing
+- Added more debug information when Debug Print is enabled
+- Layout adjusted to accommodate new sensor reading text fields
+- Plugin width increased to 520px to fit all controls comfortably
+
+**Usage Notes:**
+- The new "Digital State Text" fields will show the raw numeric value returned from Loxone sensors
+- For temperature sensors, this might display "23.5" (°C)
+- For lux sensors, this might display "450" (lux)
+- The LED still shows the on/off state, while the text field shows the actual sensor value
+- Both fields are updated during polling and when sending commands
+
+The device info issue should now be resolved with the enhanced parsing and multiple endpoint attempts.

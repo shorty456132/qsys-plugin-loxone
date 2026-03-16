@@ -78,7 +78,7 @@ table.insert(ctrls, {
   Count = 1
 })
 
--- Digital controls (one insert per control, index baked into Name so Count=1 always)
+-- Digital controls with sensor reading capability
 local dCount = math.floor(props["Digital Control Count"].Value)
 for i = 1, dCount do
   table.insert(ctrls, {
@@ -120,9 +120,18 @@ for i = 1, dCount do
     PinStyle = "Output",
     Count = 1
   })
+  -- New: Digital State Text for sensor readings
+  table.insert(ctrls, {
+    Name = "Digital State Text " .. i,
+    ControlType = "Indicator",
+    IndicatorType = "Text",
+    UserPin = true,
+    PinStyle = "Output",
+    Count = 1
+  })
 end
 
--- Analog controls (one insert per control, index baked into Name so Count=1 always)
+-- Analog controls
 local aCount = math.floor(props["Analog Control Count"].Value)
 for i = 1, aCount do
   table.insert(ctrls, {

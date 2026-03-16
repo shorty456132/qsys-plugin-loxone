@@ -9,7 +9,7 @@ if CurrentPage == "Control" then
     StrokeWidth = 0,
     CornerRadius = 0,
     Position = { 0, 0 },
-    Size = { 420, 630 },
+    Size = { 520, 630 },
     ZOrder = -10
   })
 
@@ -25,7 +25,7 @@ if CurrentPage == "Control" then
     Font = "Roboto",
     FontSize = 11,
     Position = { 10, 10 },
-    Size = { 400, 55 },
+    Size = { 500, 55 },
     ZOrder = -5
   })
 
@@ -57,7 +57,7 @@ if CurrentPage == "Control" then
   layout["Status"] = {
     PrettyName = "Connection~Status",
     Position = { 195, 30 },
-    Size = { 205, 24 }
+    Size = { 305, 24 }
   }
 
   -- Digital Controls section
@@ -72,7 +72,7 @@ if CurrentPage == "Control" then
     Font = "Roboto",
     FontSize = 11,
     Position = { 10, 75 },
-    Size = { 400, 295 },
+    Size = { 500, 295 },
     ZOrder = -5
   })
 
@@ -80,27 +80,32 @@ if CurrentPage == "Control" then
   table.insert(graphics, {
     Type = "Label", Text = "Control Name",
     Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
-    HTextAlign = "Center", Position = { 20, 95 }, Size = { 130, 17 }
+    HTextAlign = "Center", Position = { 20, 95 }, Size = { 100, 17 }
   })
   table.insert(graphics, {
     Type = "Label", Text = "On",
     Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
-    HTextAlign = "Center", Position = { 155, 95 }, Size = { 48, 17 }
+    HTextAlign = "Center", Position = { 125, 95 }, Size = { 48, 17 }
   })
   table.insert(graphics, {
     Type = "Label", Text = "Off",
     Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
-    HTextAlign = "Center", Position = { 208, 95 }, Size = { 48, 17 }
+    HTextAlign = "Center", Position = { 178, 95 }, Size = { 48, 17 }
   })
   table.insert(graphics, {
     Type = "Label", Text = "Pulse",
     Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
-    HTextAlign = "Center", Position = { 261, 95 }, Size = { 53, 17 }
+    HTextAlign = "Center", Position = { 231, 95 }, Size = { 53, 17 }
   })
   table.insert(graphics, {
-    Type = "Label", Text = "State",
+    Type = "Label", Text = "LED",
     Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
-    HTextAlign = "Center", Position = { 323, 95 }, Size = { 30, 17 }
+    HTextAlign = "Center", Position = { 293, 95 }, Size = { 30, 17 }
+  })
+  table.insert(graphics, {
+    Type = "Label", Text = "Sensor Reading",
+    Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
+    HTextAlign = "Center", Position = { 330, 95 }, Size = { 170, 17 }
   })
 
   local dCount = math.floor(props["Digital Control Count"].Value)
@@ -111,7 +116,7 @@ if CurrentPage == "Control" then
       PrettyName = "Digital " .. i .. "~Control Name",
       Style = "Text",
       Position = { 20, rowY },
-      Size = { 130, 24 },
+      Size = { 100, 24 },
       FontSize = 11
     }
 
@@ -119,7 +124,7 @@ if CurrentPage == "Control" then
       PrettyName = "Digital " .. i .. "~On",
       Style = "Button",
       ButtonVisualStyle = "Flat",
-      Position = { 155, rowY },
+      Position = { 125, rowY },
       Size = { 48, 24 },
       Color = { 0, 180, 80 },
       Legend = "On",
@@ -131,7 +136,7 @@ if CurrentPage == "Control" then
       PrettyName = "Digital " .. i .. "~Off",
       Style = "Button",
       ButtonVisualStyle = "Flat",
-      Position = { 208, rowY },
+      Position = { 178, rowY },
       Size = { 48, 24 },
       Color = { 200, 60, 60 },
       Legend = "Off",
@@ -143,7 +148,7 @@ if CurrentPage == "Control" then
       PrettyName = "Digital " .. i .. "~Pulse",
       Style = "Button",
       ButtonVisualStyle = "Flat",
-      Position = { 261, rowY },
+      Position = { 231, rowY },
       Size = { 53, 24 },
       Color = { 60, 120, 200 },
       Legend = "Pulse",
@@ -152,13 +157,22 @@ if CurrentPage == "Control" then
     }
 
     layout["Digital State " .. i] = {
-      PrettyName = "Digital " .. i .. "~State",
+      PrettyName = "Digital " .. i .. "~State LED",
       Style = "Led",
-      Position = { 330, rowY + 4 },
+      Position = { 300, rowY + 4 },
       Size = { 16, 16 },
       Color = { 0, 220, 60 },
       OffColor = { 100, 40, 40 },
       UnlinkOffColor = true
+    }
+
+    -- New: Digital State Text for sensor readings
+    layout["Digital State Text " .. i] = {
+      PrettyName = "Digital " .. i .. "~Sensor Reading",
+      Style = "Text",
+      Position = { 330, rowY },
+      Size = { 170, 24 },
+      FontSize = 10
     }
   end
 
@@ -174,7 +188,7 @@ if CurrentPage == "Control" then
     Font = "Roboto",
     FontSize = 11,
     Position = { 10, 380 },
-    Size = { 400, 205 },
+    Size = { 500, 205 },
     ZOrder = -5
   })
 
@@ -197,7 +211,7 @@ if CurrentPage == "Control" then
   table.insert(graphics, {
     Type = "Label", Text = "State",
     Color = { 170, 170, 170 }, Font = "Roboto", FontSize = 10,
-    HTextAlign = "Center", Position = { 290, 400 }, Size = { 110, 17 }
+    HTextAlign = "Center", Position = { 290, 400 }, Size = { 210, 17 }
   })
 
   local aCount = math.floor(props["Analog Control Count"].Value)
@@ -236,7 +250,7 @@ if CurrentPage == "Control" then
       PrettyName = "Analog " .. i .. "~State",
       Style = "Text",
       Position = { 290, rowY },
-      Size = { 110, 24 },
+      Size = { 210, 24 },
       FontSize = 10
     }
   end
@@ -262,7 +276,7 @@ elseif CurrentPage == "Setup" then
     StrokeWidth = 0,
     CornerRadius = 0,
     Position = { 0, 0 },
-    Size = { 420, 630 },
+    Size = { 520, 630 },
     ZOrder = -10
   })
 
@@ -278,7 +292,7 @@ elseif CurrentPage == "Setup" then
     Font = "Roboto",
     FontSize = 11,
     Position = { 10, 10 },
-    Size = { 400, 135 },
+    Size = { 500, 135 },
     ZOrder = -5
   })
 
@@ -348,7 +362,7 @@ elseif CurrentPage == "Setup" then
     Font = "Roboto",
     FontSize = 11,
     Position = { 10, 155 },
-    Size = { 400, 90 },
+    Size = { 500, 90 },
     ZOrder = -5
   })
 
@@ -361,7 +375,7 @@ elseif CurrentPage == "Setup" then
     PrettyName = "Device~Device Name",
     Style = "Text",
     Position = { 110, 181 },
-    Size = { 285, 24 },
+    Size = { 385, 24 },
     FontSize = 11
   }
 
@@ -374,7 +388,7 @@ elseif CurrentPage == "Setup" then
     PrettyName = "Device~Firmware Version",
     Style = "Text",
     Position = { 110, 211 },
-    Size = { 285, 24 },
+    Size = { 385, 24 },
     FontSize = 11
   }
 
@@ -390,7 +404,7 @@ elseif CurrentPage == "Setup" then
     Font = "Roboto",
     FontSize = 11,
     Position = { 10, 255 },
-    Size = { 400, 55 },
+    Size = { 500, 55 },
     ZOrder = -5
   })
 
@@ -422,7 +436,7 @@ elseif CurrentPage == "Setup" then
     FontSize = 10,
     HTextAlign = "Left",
     Position = { 20, 325 },
-    Size = { 380, 30 }
+    Size = { 480, 30 }
   })
 
   -- Build version

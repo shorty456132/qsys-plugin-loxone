@@ -1,4 +1,4 @@
--- Loxone Miniserver
+-- Loxone
 -- by QSC
 -- 2026-03-04
 
@@ -7,16 +7,16 @@
 
 -- Define the color of the plugin object in the design
 function GetColor(props)
-  return { 40, 80, 140 }  -- Loxone blue
+  return { 40, 80, 140 }
 end
 
 -- The name that will initially display when dragged into a design
 function GetPrettyName(props)
-  return "Loxone Miniserver, version " .. PluginInfo.Version
+  return "Loxone, version " .. PluginInfo.Version
 end
 
 -- Optional function used if plugin has multiple pages
-PageNames = { "Control", "Setup" }
+PageNames = { "Control", "Setup" }  --List the pages within the plugin
 function GetPages(props)
   local pages = {}
   --[[ #include "pages.lua" ]]
@@ -27,7 +27,7 @@ end
 function GetModel(props)
   local model = {}
   --[[ #include "model.lua" ]]
-  return model
+ return model
 end
 
 -- Define User configurable Properties of the plugin
@@ -71,7 +71,7 @@ function GetControls(props)
   return ctrls
 end
 
--- Layout of controls and graphics for the plugin UI to display
+--Layout of controls and graphics for the plugin UI to display
 function GetControlLayout(props)
   local layout = {}
   local graphics = {}
@@ -79,7 +79,7 @@ function GetControlLayout(props)
   return layout, graphics
 end
 
--- Start event based logic
+--Start event based logic
 if Controls then
   --[[ #include "runtime.lua" ]]
 end
